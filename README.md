@@ -1,113 +1,112 @@
-# Instagram Scraper (adaptación local)
+# Exportador de datos visibles de Instagram
 
-Herramienta de línea de comandos en Python para recopilar y guardar localmente información que Instagram entrega para un perfil. Exporta los resultados en JSON y puede descargar fotos y videos disponibles.
+Script en Python para exportar información visible de un perfil de Instagram usando una sesión local autenticada en Chrome. Guarda los resultados en JSON, puede descargar fotos y videos de las publicaciones y conserva checkpoints para continuar una ejecución interrumpida.
 
-Este proyecto adapta el código de [`omkarcloud/instagram-scraper`](https://github.com/omkarcloud/instagram-scraper). Esta versión se ejecuta localmente con `main.py`; no inicia el servidor REST del proyecto original ni usa Meta Graph API o una clave de RapidAPI. Para consultar Instagram emplea endpoints web y móviles internos, que pueden cambiar o limitar las solicitudes.
+> Usa el script solo con tu propia cuenta o con autorización para consultar esos datos. El script consulta endpoints internos de Instagram, que pueden cambiar y dejar de funcionar. Respeta las condiciones de uso de Instagram y la privacidad de las personas cuyos datos se procesen.
 
-## Funciones
+## Qué recopila
 
-- Guarda información básica del perfil.
-- Recopila publicaciones y reels disponibles, siguiendo la paginación que entregue Instagram.
-- Intenta recopilar seguidores, seguidos, destacados y comentarios.
-- Descarga los medios disponibles de publicaciones, reels y destacados.
-- Genera un resumen con el estado y el número de elementos de cada colección.
+- Datos del perfil.
+- Publicaciones disponibles para la sesión.
+- Seguidores y cuentas seguidas disponibles para la sesión.
+- Comentarios de las publicaciones, si `GET_COMMENTS = True`.
+- Fotos y videos de las publicaciones, si `DOWNLOAD_MEDIA = True`.
 
-La cantidad de datos depende de la visibilidad del perfil, de la sesión configurada y de las respuestas de Instagram. Una colección puede quedar parcial o fallar; el scraper no garantiza una exportación completa.
+La cantidad depende de lo que Instagram permita ver a la cuenta autenticada y de los límites configurados en el script.
 
 ## Requisitos
 
-- Python 3.12 (la imagen Docker del proyecto está basada en Python 3.12).
-- Conexión a Internet.
-- Una sesión propia de Instagram y sus cookies, configuradas localmente.
-- `curl_cffi`, la dependencia externa usada para las solicitudes HTTP.
+- Python instalado.
+- Google Chrome instalado.
+- Una sesión de Instagram válida con las cookies `sessionid`, `csrftoken` y `ds_user_id`.
+- Paquetes Python `requests` y `selenium`.
 
 ## Instalación
 
-Desde la carpeta raíz del proyecto, crea y activa un entorno virtual.
+Abre una terminal en la carpeta donde guardaste el script y crea un entorno virtual:
 
 ```powershell
-# Windows PowerShell
 python -m venv .venv
-.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install curl_cffi
+.\.venv\Scripts\Activate.ps1
+python -m pip install requests selenium
 ```
 
-En macOS o Linux:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install curl_cffi
-```
+Selenium inicia Chrome mediante WebDriver. En instalaciones actuales, Selenium Manager suele encargarse de localizar o preparar el controlador necesario.
 
 ## Configuración
 
-### Cookies
-
-En la raíz del proyecto, crea o edita `instagram_cookies.py` con el encabezado Cookie de tu propia sesión:
-
-```python
-INSTAGRAM_COOKIES = "sessionid=TU_SESSIONID; csrftoken=TU_CSRFTOKEN; ds_user_id=TU_ID"
-```
-
-Sustituye los valores de ejemplo por los de tu sesión. Las cookies son credenciales: no las publiques, no las incluyas en capturas ni las compartas. El archivo `instagram_cookies.py` está excluido de Git por `.gitignore`. Antes de subir el proyecto, confirma que no aparece en `git status` ni quedó incluido en un commit anterior. Si una cookie se expone, cierra esa sesión de Instagram y vuelve a iniciar sesión para invalidarla.
-
-El scraper lee las cookies de `instagram_cookies.py`; también puede leerlas de la variable de entorno `INSTAGRAM_COOKIES`. No es necesario ponerlas en `config.py` ni en el código fuente.
-
-### Perfil objetivo
-
-En `main.py`, cambia `TARGET_USERNAME` por el nombre de usuario que quieras consultar:
+1. En el script, cambia `USERNAME` por el usuario que quieres consultar.
+2. En la misma carpeta del script, crea `instagram_cookies.py` con las cookies de una sesión autorizada:
 
 ```python
-TARGET_USERNAME = "jhonatan.coronel"
+INSTAGRAM_COOKIES = "sessionid=VALOR; csrftoken=VALOR; ds_user_id=123456789"
 ```
+
+El valor debe ser una cadena de cookies separadas por punto y coma. `ds_user_id` debe ser numérico. No compartas este archivo: las cookies pueden dar acceso a tu cuenta.
+
+3. Añade al `.gitignore` del proyecto:
+
+```gitignore
+instagram_cookies.py
+instagram_export/
+```
+
+El script no genera ni extrae las cookies por sí mismo; las lee del archivo local `instagram_cookies.py`.
 
 ## Ejecución
 
-Ejecuta el programa desde la carpeta raíz:
+Guarda el código, por ejemplo, como `export_instagram.py`, y ejecútalo desde su carpeta:
 
-```bash
-python main.py
+```powershell
+python export_instagram.py
 ```
 
-También se puede usar el punto de entrada compatible:
+Chrome se abrirá mientras el script realiza las consultas. Al terminar o detenerse, se cierra automáticamente.
 
-```bash
-python run.py
-```
+## Archivos generados
 
-## Resultados
+Por defecto, el script guarda los resultados en `instagram_export/`:
 
-Los archivos se escriben en `output/`, que está excluida de Git:
+| Archivo o carpeta | Contenido |
+| --- | --- |
+| `1_perfil.json` | Respuesta de datos del perfil |
+| `2_publicaciones.json` | Publicaciones recopiladas |
+| `4_seguidores.json` | Seguidores recopilados |
+| `5_seguidos.json` | Cuentas seguidas recopiladas |
+| `6_comentarios.json` | Comentarios agrupados por ID de publicación |
+| `7_resumen.json` | Conteos, páginas y estado de finalización |
+| `media/<usuario>/` | Fotos y videos descargados |
+| `media_report.json` | Resultado de la descarga de medios y errores encontrados |
+| `.checkpoints/` | Estado para reanudar las páginas y comentarios pendientes |
 
-```text
-output/
-├── profile_<usuario>.json
-├── posts_<usuario>.json
-├── reels_<usuario>.json
-├── followers_<usuario>.json
-├── following_<usuario>.json
-├── highlights_<usuario>.json
-├── comments_<usuario>.json
-├── summary_<usuario>.json
-└── media/<usuario>/
-    ├── posts/
-    ├── reels/
-    └── highlights/
-```
+Los JSON se escriben en UTF-8. Las publicaciones, seguidores y cuentas seguidas se guardan a medida que avanzan las páginas.
 
-Los JSON indican si la recopilación quedó completa, parcial o falló, e incluyen información del error cuando está disponible. `summary_<usuario>.json` reúne el estado y el conteo de las colecciones.
+## Reanudar una ejecución
+
+Si el proceso se interrumpe o recibe un límite, vuelve a ejecutarlo desde la misma carpeta y conserva `instagram_export/.checkpoints/`. El script carga el cursor guardado y continúa las páginas pendientes; también omite comentarios ya procesados y medios que ya existan en disco.
+
+Para empezar una exportación nueva, elimina manualmente `instagram_export/` antes de ejecutar el script. Esto también borra los datos exportados y los checkpoints anteriores.
 
 ## Límites y errores
 
-Instagram puede responder con `429 Too Many Requests`, pedir una verificación, bloquear temporalmente una solicitud o cambiar sus endpoints. Si ocurre, el resultado puede quedar parcial. Detén la ejecución y espera antes de volver a intentarlo; repetir solicitudes rápidamente puede prolongar el bloqueo. El programa no puede garantizar que una cookie permita acceder a todos los datos.
+- El script espera `REQUEST_DELAY_SECONDS` entre solicitudes a la API y un segundo entre descargas de medios.
+- Ante HTTP 429 de la API, detiene la recopilación, informa el valor `Retry-After` si Instagram lo envía y conserva el progreso. No reintenta automáticamente esa solicitud.
+- Ante HTTP 429 del servidor de medios, detiene las descargas de medios pendientes y registra el resultado en `media_report.json`.
+- Los errores de red y las respuestas HTTP 5xx pueden reintentarse hasta `MAX_TRANSIENT_RETRIES` veces. Los errores 401 o 403 detienen el proceso para que se revise la sesión.
+- Los endpoints consultados no son una API pública estable. Un cambio de Instagram puede requerir actualizar el script.
 
-Utiliza el scraper solo con datos a los que tengas autorización para acceder. Respeta la privacidad, los derechos de las personas, las condiciones de Instagram y la legislación aplicable.
+## Opciones principales
 
-## Atribución y licencia
+Puedes modificar estas constantes al inicio del script:
 
-Este repositorio adapta código de [`omkarcloud/instagram-scraper`](https://github.com/omkarcloud/instagram-scraper), cuyo autor y titular del aviso de copyright indicado en el proyecto original es Chetan Jain. Se conserva el aviso de copyright y la licencia MIT en [`LICENSE`](LICENSE). Consulta también la [licencia del repositorio original](https://github.com/omkarcloud/instagram-scraper/blob/master/LICENSE).
+| Constante | Valor predeterminado | Efecto |
+| --- | --- | --- |
+| `OUTPUT_DIR` | `instagram_export` | Carpeta de salida |
+| `REQUEST_DELAY_SECONDS` | `5` | Pausa entre solicitudes a la API |
+| `PAGE_SIZE` | `12` | Elementos solicitados por página |
+| `MAX_POSTS` | `None` | Límite de publicaciones; `None` intenta recorrer todas las páginas disponibles |
+| `MAX_FOLLOWERS` | `None` | Límite por lista de seguidores y seguidos; `None` intenta recorrer todas las páginas disponibles |
+| `DOWNLOAD_MEDIA` | `True` | Activa o desactiva las descargas de fotos y videos |
+| `GET_COMMENTS` | `True` | Activa o desactiva la recopilación de comentarios |
 
-Al redistribuir esta adaptación, conserva `LICENSE` y los avisos de atribución correspondientes al código original.
+Si estableces un límite máximo, el resumen indicará que la recopilación es parcial cuando queden más páginas disponibles.
