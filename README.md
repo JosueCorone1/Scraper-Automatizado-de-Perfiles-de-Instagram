@@ -1,94 +1,113 @@
-Instagram Data Scraper - Arquitectura Híbrida de Extracción
+# Instagram Scraper (adaptación local)
 
-1. Descripción del Proyecto
+Herramienta de línea de comandos en Python para recopilar y guardar localmente información que Instagram entrega para un perfil. Exporta los resultados en JSON y puede descargar fotos y videos disponibles.
 
-Este proyecto consiste en un sistema automatizado de extracción de datos (Web Scraping) diseñado para recopilar información estructurada de perfiles de Instagram, incluyendo biografías, métricas de seguidores, publicaciones y contenido multimedia.
+Este proyecto adapta el código de [`omkarcloud/instagram-scraper`](https://github.com/omkarcloud/instagram-scraper). Esta versión se ejecuta localmente con `main.py`; no inicia el servidor REST del proyecto original ni usa Meta Graph API o una clave de RapidAPI. Para consultar Instagram emplea endpoints web y móviles internos, que pueden cambiar o limitar las solicitudes.
 
-Desarrollado como proyecto práctico para la asignatura de Arquitectura de Software en la carrera de Ingeniería en Sistemas de Información de la Universidad Central del Ecuador, el sistema aborda los desafíos técnicos de interactuar con plataformas que poseen estrictas barreras de seguridad y prevención de bots.
+## Funciones
 
-2. Decisiones Arquitectónicas y Retos Técnicos (Limitaciones)
+- Guarda información básica del perfil.
+- Recopila publicaciones y reels disponibles, siguiendo la paginación que entregue Instagram.
+- Intenta recopilar seguidores, seguidos, destacados y comentarios.
+- Descarga los medios disponibles de publicaciones, reels y destacados.
+- Genera un resumen con el estado y el número de elementos de cada colección.
 
-Durante el desarrollo, la plataforma de Meta bloqueó activamente las conexiones automatizadas devolviendo el Error HTTP 429 (Too Many Requests). Esto ocurre porque Instagram implementa validaciones de TLS Fingerprinting, detectando que las peticiones provienen de librerías HTTP (como Scrapy o Requests) y no de un navegador humano.
+La cantidad de datos depende de la visibilidad del perfil, de la sesión configurada y de las respuestas de Instagram. Una colección puede quedar parcial o fallar; el scraper no garantiza una exportación completa.
 
-Para solventar esto, la arquitectura se dividió en dos enfoques:
+## Requisitos
 
-Enfoque 1 (Pruebas Locales / Patrón Mocking): Se utilizó el framework Scrapy para construir el pipeline de extracción. Ante el bloqueo de red, se implementó el Patrón de Simulación (Mocking) leyendo un archivo mock_instagram.json local. Esto permite aislar la infraestructura externa y demostrar que la lógica interna de parseo y generación de diccionarios funciona correctamente.
+- Python 3.12 (la imagen Docker del proyecto está basada en Python 3.12).
+- Conexión a Internet.
+- Una sesión propia de Instagram y sus cookies, configuradas localmente.
+- `curl_cffi`, la dependencia externa usada para las solicitudes HTTP.
 
-Enfoque 2 (Evasión / Browser Automation): Se escaló la arquitectura utilizando Selenium. En lugar de peticiones HTTP puras, el sistema instancia un navegador Google Chrome real e inyecta código asíncrono en JavaScript (Fetch) utilizando la sesión (sessionid) del usuario. Esto unifica la huella digital criptográfica, logrando evadir los firewalls y descargar los datos estructurados en formato JSON.
+## Instalación
 
-3. Tecnologías Utilizadas
+Desde la carpeta raíz del proyecto, crea y activa un entorno virtual.
 
-Lenguaje: Python 3.x
+```powershell
+# Windows PowerShell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install curl_cffi
+```
 
-Framework de Scraping: Scrapy (para estructuración y pipelines)
+En macOS o Linux:
 
-Automatización de Navegador: Selenium WebDriver
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install curl_cffi
+```
 
-Peticiones HTTP: Requests (para descarga de archivos multimedia)
+## Configuración
 
-Manejo de Datos: JSON
+### Cookies
 
-4. Requisitos Previos e Instalación
+En la raíz del proyecto, crea o edita `instagram_cookies.py` con el encabezado Cookie de tu propia sesión:
 
-Para ejecutar este proyecto, es necesario tener instalado Python y Google Chrome en su equipo.
+```python
+INSTAGRAM_COOKIES = "sessionid=TU_SESSIONID; csrftoken=TU_CSRFTOKEN; ds_user_id=TU_ID"
+```
 
-Clonar o descargar el repositorio.
+Sustituye los valores de ejemplo por los de tu sesión. Las cookies son credenciales: no las publiques, no las incluyas en capturas ni las compartas. El archivo `instagram_cookies.py` está excluido de Git por `.gitignore`. Antes de subir el proyecto, confirma que no aparece en `git status` ni quedó incluido en un commit anterior. Si una cookie se expone, cierra esa sesión de Instagram y vuelve a iniciar sesión para invalidarla.
 
-Abrir una terminal en la carpeta del proyecto.
+El scraper lee las cookies de `instagram_cookies.py`; también puede leerlas de la variable de entorno `INSTAGRAM_COOKIES`. No es necesario ponerlas en `config.py` ni en el código fuente.
 
-Instalar las dependencias requeridas ejecutando:
+### Perfil objetivo
 
-pip install scrapy selenium requests
+En `main.py`, cambia `TARGET_USERNAME` por el nombre de usuario que quieras consultar:
 
+```python
+TARGET_USERNAME = "jhonatan.coronel"
+```
 
-5. Instrucciones de Ejecución
+## Ejecución
 
-El proyecto ofrece dos métodos de ejecución dependiendo del estado de la red y el "Rate Limiting" de la cuenta:
+Ejecuta el programa desde la carpeta raíz:
 
-Opción A: Extracción Real (Selenium + JS Fetch)
+```bash
+python main.py
+```
 
-Este método interactúa con los servidores reales de Instagram utilizando una huella de navegador válida.
+También se puede usar el punto de entrada compatible:
 
-Abra una ventana de incógnito en Google Chrome e inicie sesión en Instagram.
+```bash
+python run.py
+```
 
-Extraiga sus cookies frescas (sessionid y csrftoken).
+## Resultados
 
-Inserte estas credenciales en la sección de CONFIGURACIÓN del archivo instagram_scraper_completo.py.
+Los archivos se escriben en `output/`, que está excluida de Git:
 
-Ejecute el script:
+```text
+output/
+├── profile_<usuario>.json
+├── posts_<usuario>.json
+├── reels_<usuario>.json
+├── followers_<usuario>.json
+├── following_<usuario>.json
+├── highlights_<usuario>.json
+├── comments_<usuario>.json
+├── summary_<usuario>.json
+└── media/<usuario>/
+    ├── posts/
+    ├── reels/
+    └── highlights/
+```
 
-python instagram_scraper_completo.py
+Los JSON indican si la recopilación quedó completa, parcial o falló, e incluyen información del error cuando está disponible. `summary_<usuario>.json` reúne el estado y el conteo de las colecciones.
 
+## Límites y errores
 
-Opción B: Entorno Simulado (Mocking con Scrapy)
+Instagram puede responder con `429 Too Many Requests`, pedir una verificación, bloquear temporalmente una solicitud o cambiar sus endpoints. Si ocurre, el resultado puede quedar parcial. Detén la ejecución y espera antes de volver a intentarlo; repetir solicitudes rápidamente puede prolongar el bloqueo. El programa no puede garantizar que una cookie permita acceder a todos los datos.
 
-Ideal para pruebas de desarrollo o cuando la dirección IP se encuentra en estado de penalización (Error 429).
+Utiliza el scraper solo con datos a los que tengas autorización para acceder. Respeta la privacidad, los derechos de las personas, las condiciones de Instagram y la legislación aplicable.
 
-Asegúrese de tener el archivo mock_instagram.json en el mismo directorio.
+## Atribución y licencia
 
-Verifique que la variable start_urls en instagram_spider.py apunte al archivo local (file:///...).
+Este repositorio adapta código de [`omkarcloud/instagram-scraper`](https://github.com/omkarcloud/instagram-scraper), cuyo autor y titular del aviso de copyright indicado en el proyecto original es Chetan Jain. Se conserva el aviso de copyright y la licencia MIT en [`LICENSE`](LICENSE). Consulta también la [licencia del repositorio original](https://github.com/omkarcloud/instagram-scraper/blob/master/LICENSE).
 
-Ejecute el spider para procesar el Mock:
-
-python -m scrapy runspider instagram_spider.py -o datos_perfil.json
-
-
-6. Estructura de Salida (Output)
-
-La ejecución exitosa del sistema generará una carpeta llamada instagram_export/ (o un archivo datos_perfil.json en el caso del Mock) que contendrá datos limpios y estructurados como:
-
-perfil.json: Datos biográficos y métricas principales.
-
-publicaciones.json: Lista de los últimos posts, likes, y descripciones.
-
-seguidores.json / seguidos.json: Nodos de la red de contactos.
-
-7. Autor
-
-Jhonatan Josue Coronel Herrera
-
-Estudiante de Ingeniería en Sistemas de Información
-
-Universidad Central del Ecuador
-
-Asignatura: Arquitectura de Software
+Al redistribuir esta adaptación, conserva `LICENSE` y los avisos de atribución correspondientes al código original.
