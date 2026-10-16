@@ -12,9 +12,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 USERNAME = "jhonatan.coronel"
 
 COOKIES = {
-    "sessionid": "47441424814%3AltWAS7UPMF2pPx%3A29%3AAYn9L3v4j7IPcvTHJ8nPBUbHEAUvu7vE1uZu7FB-sA",
-    "csrftoken": "DREAYg2olLGI4A2whGOwUvk5BJFK7qgh",
-    "ds_user_id": "47441424814",
+    "sessionid": "",
+    "csrftoken": "",
+    "ds_user_id": "",
 }
 
 SALIDA = "instagram_export"
